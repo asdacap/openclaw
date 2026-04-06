@@ -13,6 +13,7 @@ import {
   isLikelyExecutionAckPrompt,
   resolveAckExecutionFastPathInstruction,
   resolvePlanningOnlyRetryInstruction,
+  resolveThinkingOnlyRetryInstruction,
 } from "./run/incomplete-turn.js";
 import type { EmbeddedRunAttemptResult } from "./run/types.js";
 
@@ -138,5 +139,135 @@ describe("runEmbeddedPiAgent incomplete-turn safety", () => {
       explanation: "I'll inspect the code. Then I'll patch the issue. Finally I'll run tests.",
       steps: ["I'll inspect the code.", "Then I'll patch the issue.", "Finally I'll run tests."],
     });
+  });
+
+  // ── Thinking-only retry detection ──────────────────────────────────────
+
+  it("detects thinking-only turn (reasoning but no text)", () => {
+    const instruction = resolveThinkingOnlyRetryInstruction({
+      aborted: false,
+      timedOut: false,
+      attempt: makeAttemptResult({
+        assistantTexts: [],
+        lastAssistant: {
+          stopReason: "stop",
+          content: [{ type: "thinking", thinking: "Let me analyze this..." }],
+        } as unknown as EmbeddedRunAttemptResult["lastAssistant"],
+      }),
+    });
+
+    expect(instruction).toContain("no visible reply");
+  });
+
+  it("does not trigger thinking-only retry when text is present", () => {
+    const instruction = resolveThinkingOnlyRetryInstruction({
+      aborted: false,
+      timedOut: false,
+      attempt: makeAttemptResult({
+        assistantTexts: ["Here is my response."],
+        lastAssistant: {
+          stopReason: "stop",
+          content: [
+            { type: "thinking", thinking: "Let me analyze this..." },
+            { type: "text", text: "Here is my response." },
+          ],
+        } as unknown as EmbeddedRunAttemptResult["lastAssistant"],
+      }),
+    });
+
+    expect(instruction).toBeNull();
+  });
+
+  it("does not trigger thinking-only retry for empty response without thinking", () => {
+    const instruction = resolveThinkingOnlyRetryInstruction({
+      aborted: false,
+      timedOut: false,
+      attempt: makeAttemptResult({
+        assistantTexts: [],
+        lastAssistant: {
+          stopReason: "stop",
+          content: [],
+        } as unknown as EmbeddedRunAttemptResult["lastAssistant"],
+      }),
+    });
+
+    expect(instruction).toBeNull();
+  });
+
+  it("does not trigger thinking-only retry after messaging tool sent", () => {
+    const instruction = resolveThinkingOnlyRetryInstruction({
+      aborted: false,
+      timedOut: false,
+      attempt: makeAttemptResult({
+        assistantTexts: [],
+        didSendViaMessagingTool: true,
+        lastAssistant: {
+          stopReason: "stop",
+          content: [{ type: "thinking", thinking: "Reasoning..." }],
+        } as unknown as EmbeddedRunAttemptResult["lastAssistant"],
+      }),
+    });
+
+    expect(instruction).toBeNull();
+  });
+
+  it("retries thinking-only turn in the run loop", async () => {
+    mockedClassifyFailoverReason.mockReturnValue(null);
+
+    // First attempt: thinking-only (no text).
+    mockedRunEmbeddedAttempt.mockResolvedValueOnce(
+      makeAttemptResult({
+        assistantTexts: [],
+        lastAssistant: {
+          stopReason: "stop",
+          content: [{ type: "thinking", thinking: "Let me think about this..." }],
+        } as unknown as EmbeddedRunAttemptResult["lastAssistant"],
+      }),
+    );
+    // Second attempt: normal response.
+    mockedRunEmbeddedAttempt.mockResolvedValueOnce(
+      makeAttemptResult({
+        assistantTexts: ["Here is the answer."],
+        lastAssistant: {
+          stopReason: "stop",
+          content: [{ type: "text", text: "Here is the answer." }],
+        } as unknown as EmbeddedRunAttemptResult["lastAssistant"],
+      }),
+    );
+
+    await runEmbeddedPiAgent({
+      ...overflowBaseRunParams,
+      runId: "run-thinking-only-retry",
+    });
+
+    // The runner retried: two attempt calls instead of one.
+    expect(mockedRunEmbeddedAttempt).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry thinking-only turn when config sets max attempts to 0", async () => {
+    mockedClassifyFailoverReason.mockReturnValue(null);
+
+    mockedRunEmbeddedAttempt.mockResolvedValueOnce(
+      makeAttemptResult({
+        assistantTexts: [],
+        lastAssistant: {
+          stopReason: "stop",
+          content: [{ type: "thinking", thinking: "Reasoning only..." }],
+        } as unknown as EmbeddedRunAttemptResult["lastAssistant"],
+      }),
+    );
+
+    const result = await runEmbeddedPiAgent({
+      ...overflowBaseRunParams,
+      runId: "run-thinking-only-disabled",
+      config: {
+        agents: { defaults: { llm: { thinkingOnlyRetryMaxAttempts: 0 } } },
+      } as unknown as typeof overflowBaseRunParams extends { config?: infer C } ? C : never,
+    });
+
+    // Should only call the attempt once (no retry).
+    expect(mockedRunEmbeddedAttempt).toHaveBeenCalledTimes(1);
+    // No visible text → empty payloads.
+    expect(result.payloads?.some((p) => p.text?.includes("Here is the answer"))).toBeFalsy();
   });
 });

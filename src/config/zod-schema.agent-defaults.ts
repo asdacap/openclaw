@@ -98,6 +98,14 @@ export const AgentDefaultsSchema = z
           .describe(
             "Idle timeout for LLM streaming responses in seconds. If no token is received within this time, the request is aborted. Set to 0 to disable. Default: 60 seconds.",
           ),
+        thinkingOnlyRetryMaxAttempts: z
+          .number()
+          .int()
+          .nonnegative()
+          .optional()
+          .describe(
+            "Maximum automatic retries when a model returns only thinking/reasoning blocks with no visible text. Set to 0 to disable. Default: 3.",
+          ),
       })
       .strict()
       .optional(),

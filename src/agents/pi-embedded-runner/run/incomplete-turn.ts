@@ -1,3 +1,4 @@
+import { extractAssistantThinking } from "../../pi-embedded-utils.js";
 import { isLikelyMutatingToolName } from "../../tool-mutation.js";
 import type { EmbeddedRunAttemptResult } from "./types.js";
 
@@ -199,6 +200,63 @@ export function extractPlanningOnlyPlanDetails(text: string): PlanningOnlyPlanDe
     explanation: trimmed,
     steps,
   };
+}
+
+type ThinkingOnlyAttempt = Pick<
+  EmbeddedRunAttemptResult,
+  | "assistantTexts"
+  | "clientToolCall"
+  | "yieldDetected"
+  | "didSendDeterministicApprovalPrompt"
+  | "didSendViaMessagingTool"
+  | "lastToolError"
+  | "lastAssistant"
+  | "replayMetadata"
+>;
+
+export const THINKING_ONLY_RETRY_INSTRUCTION =
+  "The previous response contained only internal reasoning with no visible reply. Please provide an actual text response to the user's message.";
+
+/**
+ * Detects when a model returned only thinking/reasoning blocks with no visible
+ * text content. This commonly happens with certain OpenRouter models.
+ * Returns a retry instruction string when the condition is met, null otherwise.
+ */
+export function resolveThinkingOnlyRetryInstruction(params: {
+  aborted: boolean;
+  timedOut: boolean;
+  attempt: ThinkingOnlyAttempt;
+}): string | null {
+  if (
+    params.aborted ||
+    params.timedOut ||
+    params.attempt.clientToolCall ||
+    params.attempt.yieldDetected ||
+    params.attempt.didSendDeterministicApprovalPrompt ||
+    params.attempt.didSendViaMessagingTool ||
+    params.attempt.lastToolError ||
+    params.attempt.replayMetadata.hadPotentialSideEffects
+  ) {
+    return null;
+  }
+
+  // Only trigger when there is no visible text output.
+  const hasVisibleText = params.attempt.assistantTexts.some((t) => t.trim().length > 0);
+  if (hasVisibleText) {
+    return null;
+  }
+
+  // Verify the model actually produced thinking content (not just an empty response).
+  const lastAssistant = params.attempt.lastAssistant;
+  if (!lastAssistant) {
+    return null;
+  }
+  const thinkingText = extractAssistantThinking(lastAssistant);
+  if (!thinkingText.trim()) {
+    return null;
+  }
+
+  return THINKING_ONLY_RETRY_INSTRUCTION;
 }
 
 export function resolvePlanningOnlyRetryInstruction(params: {

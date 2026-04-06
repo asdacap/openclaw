@@ -311,7 +311,7 @@ export type AgentCompactionMemoryFlushConfig = {
 };
 
 /**
- * LLM timeout configuration.
+ * LLM response configuration.
  */
 export type AgentLlmConfig = {
   /**
@@ -321,4 +321,10 @@ export type AgentLlmConfig = {
    * Default: 60 seconds.
    */
   idleTimeoutSeconds?: number;
+  /**
+   * Maximum automatic retries when a model returns only thinking/reasoning
+   * blocks with no visible text content. Set to 0 to disable.
+   * Default: 3.
+   */
+  thinkingOnlyRetryMaxAttempts?: number;
 };

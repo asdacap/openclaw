@@ -78,6 +78,7 @@ import {
   resolveOverloadFailoverBackoffMs,
   resolveOverloadProfileRotationLimit,
   resolveRateLimitProfileRotationLimit,
+  resolveThinkingOnlyRetryMaxAttempts,
   type RuntimeAuthState,
   scrubAnthropicRefusalMagic,
 } from "./run/helpers.js";
@@ -86,6 +87,7 @@ import {
   resolveIncompleteTurnPayloadText,
   extractPlanningOnlyPlanDetails,
   resolvePlanningOnlyRetryInstruction,
+  resolveThinkingOnlyRetryInstruction,
 } from "./run/incomplete-turn.js";
 import type { RunEmbeddedPiAgentParams } from "./run/params.js";
 import { buildEmbeddedRunPayloads } from "./run/payloads.js";
@@ -330,8 +332,11 @@ export async function runEmbeddedPiAgent(
       let runLoopIterations = 0;
       let overloadProfileRotations = 0;
       let planningOnlyRetryAttempts = 0;
+      let thinkingOnlyRetryAttempts = 0;
       let lastRetryFailoverReason: FailoverReason | null = null;
       let planningOnlyRetryInstruction: string | null = null;
+      let thinkingOnlyRetryInstruction: string | null = null;
+      const thinkingOnlyRetryMaxAttempts = resolveThinkingOnlyRetryMaxAttempts(params.config);
       const ackExecutionFastPathInstruction = resolveAckExecutionFastPathInstruction({
         provider,
         modelId,
@@ -512,6 +517,7 @@ export async function runEmbeddedPiAgent(
           const promptAdditions = [
             ackExecutionFastPathInstruction,
             planningOnlyRetryInstruction,
+            thinkingOnlyRetryInstruction,
           ].filter(
             (value): value is string => typeof value === "string" && value.trim().length > 0,
           );
@@ -1423,6 +1429,26 @@ export async function runEmbeddedPiAgent(
             log.warn(
               `planning-only turn detected: runId=${params.runId} sessionId=${params.sessionId} ` +
                 `provider=${provider}/${modelId} — retrying once with act-now steer`,
+            );
+            continue;
+          }
+          // Detect thinking-only responses (model returned reasoning but no text).
+          const nextThinkingOnlyRetryInstruction = resolveThinkingOnlyRetryInstruction({
+            aborted,
+            timedOut,
+            attempt,
+          });
+          if (
+            !incompleteTurnText &&
+            !nextPlanningOnlyRetryInstruction &&
+            nextThinkingOnlyRetryInstruction &&
+            thinkingOnlyRetryAttempts < thinkingOnlyRetryMaxAttempts
+          ) {
+            thinkingOnlyRetryAttempts += 1;
+            thinkingOnlyRetryInstruction = nextThinkingOnlyRetryInstruction;
+            log.warn(
+              `thinking-only turn detected: runId=${params.runId} sessionId=${params.sessionId} ` +
+                `provider=${provider}/${modelId} attempt=${thinkingOnlyRetryAttempts}/${thinkingOnlyRetryMaxAttempts} — retrying`,
             );
             continue;
           }

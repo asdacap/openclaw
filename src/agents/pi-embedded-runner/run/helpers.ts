@@ -43,6 +43,15 @@ export function resolveRateLimitProfileRotationLimit(cfg?: OpenClawConfig): numb
   );
 }
 
+export const DEFAULT_THINKING_ONLY_RETRY_MAX_ATTEMPTS = 3;
+
+export function resolveThinkingOnlyRetryMaxAttempts(cfg?: OpenClawConfig): number {
+  return (
+    cfg?.agents?.defaults?.llm?.thinkingOnlyRetryMaxAttempts ??
+    DEFAULT_THINKING_ONLY_RETRY_MAX_ATTEMPTS
+  );
+}
+
 const ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL = "ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL";
 const ANTHROPIC_MAGIC_STRING_REPLACEMENT = "ANTHROPIC MAGIC STRING TRIGGER REFUSAL (redacted)";
 
