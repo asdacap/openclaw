@@ -1,5 +1,6 @@
 import { Type } from "@sinclair/typebox";
 import type { OpenClawConfig } from "../../config/config.js";
+import { logWarn } from "../../logger.js";
 import { COMPACT_TOOL_DISPLAY_SUMMARY } from "../tool-description-presets.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readStringParam } from "./common.js";
@@ -84,8 +85,10 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
               memoryFlushed = false;
             }
           }
-        } catch {
-          // Memory flush is best-effort; proceed with compaction.
+        } catch (err) {
+          logWarn(
+            `[compact] memory flush failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
 
