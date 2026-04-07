@@ -66,7 +66,9 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
           const { resolveAgentIdFromSessionKey } = await import("../../routing/session-key.js");
 
           const plan = resolveMemoryFlushPlan({ cfg: opts.config });
-          if (plan) {
+          if (!plan) {
+            logWarn("[compact] memory flush skipped: no flush plan resolved from config");
+          } else {
             const agentId = opts.sessionKey
               ? resolveAgentIdFromSessionKey(opts.sessionKey)
               : undefined;
@@ -77,11 +79,13 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
             const entry = opts.sessionKey ? store[opts.sessionKey] : undefined;
             const alreadyFlushed = entry != null && hasAlreadyFlushedForCurrentCompaction(entry);
 
-            if (!alreadyFlushed) {
-              // Memory flush is best-effort; log but don't block compaction on failure.
-              // A full flush requires running an embedded agent turn which is complex.
-              // For now, skip the actual flush execution and just note that it was requested.
+            if (alreadyFlushed) {
+              logWarn("[compact] memory flush skipped: already flushed for current compaction");
+            } else {
               // TODO: Extract core flush logic from runMemoryFlushIfNeeded into a reusable function.
+              logWarn(
+                "[compact] memory flush skipped: not yet implemented in compact_context tool",
+              );
               memoryFlushed = false;
             }
           }
