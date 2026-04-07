@@ -54,10 +54,12 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
     parameters: CompactToolSchema,
     execute: async (_toolCallId, args) => {
       if (!opts.sessionId || !opts.sessionFile) {
+        const missing = [!opts.sessionId && "sessionId", !opts.sessionFile && "sessionFile"].filter(
+          Boolean,
+        );
         return jsonResult({
           status: "error",
-          reason:
-            "Compaction is not available: session context is missing (no sessionId or sessionFile).",
+          reason: `Compaction is not available: missing ${missing.join(" and ")}.`,
         });
       }
 
