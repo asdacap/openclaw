@@ -643,6 +643,12 @@ importers:
 
   extensions/searxng: {}
 
+  extensions/session-history-seek:
+    dependencies:
+      '@sinclair/typebox':
+        specifier: 0.34.49
+        version: 0.34.49
+
   extensions/sglang: {}
 
   extensions/signal: {}

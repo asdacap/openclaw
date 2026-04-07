@@ -1,0 +1,6 @@
+{
+  "id": "session-history-seek",
+  "name": "Session History Seek",
+  "description": "Efficient seek-based session history retrieval with timestamp and offset support.",
+  "enabledByDefault": true
+}

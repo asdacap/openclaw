@@ -215,6 +215,7 @@
   "channel-status",
   "status-helpers",
   "speech",
+  "session-history-seek",
   "session-store-runtime",
   "string-normalization-runtime",
   "state-paths",

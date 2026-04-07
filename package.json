@@ -903,6 +903,10 @@
       "types": "./dist/plugin-sdk/speech.d.ts",
       "default": "./dist/plugin-sdk/speech.js"
     },
+    "./plugin-sdk/session-history-seek": {
+      "types": "./dist/plugin-sdk/session-history-seek.d.ts",
+      "default": "./dist/plugin-sdk/session-history-seek.js"
+    },
     "./plugin-sdk/session-store-runtime": {
       "types": "./dist/plugin-sdk/session-store-runtime.d.ts",
       "default": "./dist/plugin-sdk/session-store-runtime.js"

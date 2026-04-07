@@ -1,0 +1,15 @@
+{
+  "name": "@openclaw/session-history-seek",
+  "version": "2026.4.5",
+  "private": true,
+  "description": "OpenClaw session history seek plugin",
+  "type": "module",
+  "dependencies": {
+    "@sinclair/typebox": "0.34.49"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
