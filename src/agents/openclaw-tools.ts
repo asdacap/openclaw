@@ -307,8 +307,6 @@ export function createOpenClawTools(
       workspaceDir,
       agentDir: options?.agentDir,
       config: resolvedConfig,
-      skillsSnapshot: undefined,
-      provider: options?.modelProvider,
       senderIsOwner: options?.senderIsOwner,
       allowGatewaySubagentBinding: options?.allowGatewaySubagentBinding,
     }),

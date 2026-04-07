@@ -1,7 +1,5 @@
 import { Type } from "@sinclair/typebox";
-import type { ThinkLevel } from "../../auto-reply/thinking.js";
 import type { OpenClawConfig } from "../../config/config.js";
-import type { SkillSnapshot } from "../skills.js";
 import { COMPACT_TOOL_DISPLAY_SUMMARY } from "../tool-description-presets.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult, readStringParam } from "./common.js";
@@ -27,17 +25,7 @@ export type CompactToolOptions = {
   workspaceDir: string;
   agentDir?: string;
   config?: OpenClawConfig;
-  skillsSnapshot?: SkillSnapshot;
-  provider?: string;
-  model?: string;
-  thinkLevel?: ThinkLevel;
-  messageChannel?: string;
-  groupId?: string | null;
-  groupChannel?: string | null;
-  groupSpace?: string | null;
-  spawnedBy?: string | null;
   senderIsOwner?: boolean;
-  ownerNumbers?: string[];
   allowGatewaySubagentBinding?: boolean;
 };
 
@@ -111,17 +99,7 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
           workspaceDir: opts.workspaceDir,
           agentDir: opts.agentDir,
           config: opts.config,
-          skillsSnapshot: opts.skillsSnapshot,
-          provider: opts.provider,
-          model: opts.model,
-          thinkLevel: opts.thinkLevel,
-          messageChannel: opts.messageChannel,
-          groupId: opts.groupId,
-          groupChannel: opts.groupChannel,
-          groupSpace: opts.groupSpace,
-          spawnedBy: opts.spawnedBy,
           senderIsOwner: opts.senderIsOwner,
-          ownerNumbers: opts.ownerNumbers,
           allowGatewaySubagentBinding: opts.allowGatewaySubagentBinding,
           customInstructions: instructions ?? undefined,
           trigger: "manual",
