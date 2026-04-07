@@ -90,6 +90,24 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
       }
 
       try {
+        // Resolve the agent's configured model so compaction uses the same
+        // provider instead of falling back to the hardcoded default (openai/gpt-5.4).
+        let provider: string | undefined;
+        let model: string | undefined;
+        if (opts.config && opts.sessionKey) {
+          const { resolveAgentIdFromSessionKey } = await import("../../routing/session-key.js");
+          const { resolveAgentEffectiveModelPrimary } = await import("../agent-scope.js");
+          const agentId = resolveAgentIdFromSessionKey(opts.sessionKey);
+          const modelRef = resolveAgentEffectiveModelPrimary(opts.config, agentId);
+          if (modelRef) {
+            const slashIdx = modelRef.indexOf("/");
+            if (slashIdx > 0) {
+              provider = modelRef.slice(0, slashIdx);
+              model = modelRef.slice(slashIdx + 1);
+            }
+          }
+        }
+
         const { compactEmbeddedPiSessionDirect } =
           await import("../pi-embedded-runner/compact.runtime.js");
         const result = await compactEmbeddedPiSessionDirect({
@@ -102,6 +120,8 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
           senderIsOwner: opts.senderIsOwner,
           allowGatewaySubagentBinding: opts.allowGatewaySubagentBinding,
           customInstructions: instructions ?? undefined,
+          provider,
+          model,
           trigger: "manual",
           bashElevated: {
             enabled: false,
