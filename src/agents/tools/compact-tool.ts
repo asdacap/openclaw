@@ -44,7 +44,7 @@ export type CompactToolOptions = {
 export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
   return {
     label: "Compact",
-    name: "compact",
+    name: "compact_context",
     displaySummary: COMPACT_TOOL_DISPLAY_SUMMARY,
     description:
       "Trigger context compaction to reduce token usage. " +

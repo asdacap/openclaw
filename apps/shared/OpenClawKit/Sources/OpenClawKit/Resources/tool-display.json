@@ -695,7 +695,7 @@
       "title": "Agents",
       "detailKeys": []
     },
-    "compact": {
+    "compact_context": {
       "emoji": "🗜️",
       "title": "Compact",
       "detailKeys": [

@@ -304,8 +304,8 @@ const CORE_TOOL_DEFINITIONS: CoreToolDefinition[] = [
     includeInOpenClawGroup: true,
   },
   {
-    id: "compact",
-    label: "compact",
+    id: "compact_context",
+    label: "compact_context",
     description: COMPACT_TOOL_DISPLAY_SUMMARY,
     sectionId: "sessions",
     profiles: ["coding"],

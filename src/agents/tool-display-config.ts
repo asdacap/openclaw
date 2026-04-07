@@ -461,7 +461,7 @@ export const TOOL_DISPLAY_CONFIG: ToolDisplayConfig = {
       title: "Agents",
       detailKeys: [],
     },
-    compact: {
+    compact_context: {
       emoji: "🗜️",
       title: "Compact",
       detailKeys: ["instructions", "flushMemory"],

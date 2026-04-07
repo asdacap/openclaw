@@ -34,7 +34,7 @@ const baseOpts = {
 describe("createCompactTool", () => {
   it("has correct tool metadata", () => {
     const tool = createCompactTool(baseOpts);
-    expect(tool.name).toBe("compact");
+    expect(tool.name).toBe("compact_context");
     expect(tool.label).toBe("Compact");
     expect(tool.ownerOnly).toBeUndefined();
   });
