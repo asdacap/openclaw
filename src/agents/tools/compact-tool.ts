@@ -21,9 +21,9 @@ const CompactToolSchema = Type.Object({
 });
 
 export type CompactToolOptions = {
-  sessionId: string;
+  sessionId?: string;
   sessionKey?: string;
-  sessionFile: string;
+  sessionFile?: string;
   workspaceDir: string;
   agentDir?: string;
   config?: OpenClawConfig;
@@ -53,6 +53,14 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
       "Returns token counts before and after compaction.",
     parameters: CompactToolSchema,
     execute: async (_toolCallId, args) => {
+      if (!opts.sessionId || !opts.sessionFile) {
+        return jsonResult({
+          status: "error",
+          reason:
+            "Compaction is not available: session context is missing (no sessionId or sessionFile).",
+        });
+      }
+
       const params = args as Record<string, unknown>;
       const instructions = readStringParam(params, "instructions");
       const flushMemory = params.flushMemory === true;

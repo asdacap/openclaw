@@ -300,22 +300,18 @@ export function createOpenClawTools(
       config: resolvedConfig,
       sandboxed: options?.sandboxed,
     }),
-    ...(options?.sessionId && options?.sessionFile
-      ? [
-          createCompactTool({
-            sessionId: options.sessionId,
-            sessionKey: options.agentSessionKey,
-            sessionFile: options.sessionFile,
-            workspaceDir,
-            agentDir: options.agentDir,
-            config: resolvedConfig,
-            skillsSnapshot: undefined,
-            provider: options.modelProvider,
-            senderIsOwner: options.senderIsOwner,
-            allowGatewaySubagentBinding: options.allowGatewaySubagentBinding,
-          }),
-        ]
-      : []),
+    createCompactTool({
+      sessionId: options?.sessionId,
+      sessionKey: options?.agentSessionKey,
+      sessionFile: options?.sessionFile,
+      workspaceDir,
+      agentDir: options?.agentDir,
+      config: resolvedConfig,
+      skillsSnapshot: undefined,
+      provider: options?.modelProvider,
+      senderIsOwner: options?.senderIsOwner,
+      allowGatewaySubagentBinding: options?.allowGatewaySubagentBinding,
+    }),
     ...(options?.disabledToolsRef
       ? [createToolsDisabledTool({ disabledToolsRef: options.disabledToolsRef })]
       : []),
