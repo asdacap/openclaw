@@ -243,7 +243,7 @@ function resetRunConfigMocks(): void {
   getModelRefStatusMock.mockReturnValue({ allowed: false });
   resolveCronStyleNowMock.mockReturnValue({
     formattedTime: "2026-02-10 12:00",
-    timeLine: "Current time: 2026-02-10 12:00 UTC",
+    timeLine: "Current time: 2026-02-10 12:00 (UTC)",
   });
   resolveAgentTimeoutMsMock.mockReturnValue(60_000);
   deriveSessionTotalTokensMock.mockReturnValue(30);
