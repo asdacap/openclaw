@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Type } from "@sinclair/typebox";
 import type { OpenClawConfig } from "../../config/config.js";
 import { logWarn } from "../../logger.js";
@@ -29,6 +30,9 @@ export type CompactToolOptions = {
   senderIsOwner?: boolean;
   allowGatewaySubagentBinding?: boolean;
 };
+
+/** Default timeout for a memory flush agent run (5 minutes). */
+const MEMORY_FLUSH_TIMEOUT_MS = 5 * 60 * 1000;
 
 export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
   return {
@@ -82,11 +86,12 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
             if (alreadyFlushed) {
               logWarn("[compact] memory flush skipped: already flushed for current compaction");
             } else {
-              // TODO: Extract core flush logic from runMemoryFlushIfNeeded into a reusable function.
-              logWarn(
-                "[compact] memory flush skipped: not yet implemented in compact_context tool",
-              );
-              memoryFlushed = false;
+              memoryFlushed = await runMemoryFlush({
+                opts,
+                plan,
+                storePath,
+                agentId,
+              });
             }
           }
         } catch (err) {
@@ -166,4 +171,101 @@ export function createCompactTool(opts: CompactToolOptions): AnyAgentTool {
       }
     },
   };
+}
+
+async function runMemoryFlush(params: {
+  opts: CompactToolOptions;
+  plan: { prompt: string; systemPrompt: string; relativePath: string };
+  storePath: string;
+  agentId?: string;
+}): Promise<boolean> {
+  const { opts, plan } = params;
+  if (!opts.sessionId || !opts.sessionFile) {
+    logWarn("[compact] memory flush skipped: missing sessionId or sessionFile");
+    return false;
+  }
+
+  // Resolve the agent's configured model for the flush run.
+  let provider: string | undefined;
+  let model: string | undefined;
+  if (opts.config && opts.sessionKey) {
+    const { resolveAgentEffectiveModelPrimary } = await import("../agent-scope.js");
+    const { resolveAgentIdFromSessionKey } = await import("../../routing/session-key.js");
+    const agentId = resolveAgentIdFromSessionKey(opts.sessionKey);
+    const modelRef = resolveAgentEffectiveModelPrimary(opts.config, agentId);
+    if (modelRef) {
+      const slashIdx = modelRef.indexOf("/");
+      if (slashIdx > 0) {
+        provider = modelRef.slice(0, slashIdx);
+        model = modelRef.slice(slashIdx + 1);
+      }
+    }
+  }
+
+  const { runEmbeddedPiAgent } = await import("../pi-embedded-runner/run.js");
+  const { updateSessionStoreEntry } = await import("../../config/sessions/store.runtime.js");
+
+  let memoryCompactionCompleted = false;
+  const flushRunId = crypto.randomUUID();
+
+  await runEmbeddedPiAgent({
+    sessionId: opts.sessionId,
+    sessionKey: opts.sessionKey,
+    sessionFile: opts.sessionFile,
+    workspaceDir: opts.workspaceDir,
+    agentDir: opts.agentDir,
+    config: opts.config,
+    senderIsOwner: opts.senderIsOwner,
+    allowGatewaySubagentBinding: opts.allowGatewaySubagentBinding,
+    trigger: "memory",
+    memoryFlushWritePath: plan.relativePath,
+    prompt: plan.prompt,
+    extraSystemPrompt: plan.systemPrompt,
+    provider,
+    model,
+    silentExpected: true,
+    timeoutMs: MEMORY_FLUSH_TIMEOUT_MS,
+    runId: flushRunId,
+    onAgentEvent: (evt) => {
+      if (evt.stream === "compaction") {
+        const phase = typeof evt.data.phase === "string" ? evt.data.phase : "";
+        if (phase === "end") {
+          memoryCompactionCompleted = true;
+        }
+      }
+    },
+  });
+
+  // Update session metadata to record the flush.
+  if (opts.sessionKey && params.storePath) {
+    if (memoryCompactionCompleted) {
+      const { incrementCompactionCount } =
+        await import("../../auto-reply/reply/session-updates.js");
+      await incrementCompactionCount({
+        cfg: opts.config,
+        sessionKey: opts.sessionKey,
+        storePath: params.storePath,
+      });
+    }
+    try {
+      const { loadSessionStore } = await import("../../config/sessions.js");
+      const store = loadSessionStore(params.storePath);
+      const entry = store[opts.sessionKey];
+      const memoryFlushCompactionCount = entry?.compactionCount ?? 0;
+      await updateSessionStoreEntry({
+        storePath: params.storePath,
+        sessionKey: opts.sessionKey,
+        update: async () => ({
+          memoryFlushAt: Date.now(),
+          memoryFlushCompactionCount,
+        }),
+      });
+    } catch (err) {
+      logWarn(
+        `[compact] failed to persist memory flush metadata: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  return true;
 }
