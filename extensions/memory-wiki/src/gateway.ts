@@ -68,15 +68,15 @@ function readEnumParam<T extends string>(
 }
 
 function respondError(
-  respond: Parameters<OpenClawPluginApi["registerGatewayMethod"]>[1] extends (
-    ctx: infer T,
-  ) => unknown
-    ? T["respond"]
-    : never,
+  respond: (
+    ok: boolean,
+    payload?: unknown,
+    error?: { code: string; message: string; details?: unknown },
+  ) => void,
   error: unknown,
 ) {
   const message = error instanceof Error ? error.message : String(error);
-  respond(false, undefined, { message });
+  respond(false, undefined, { code: "INTERNAL_ERROR", message });
 }
 
 async function syncImportedSourcesIfNeeded(
@@ -149,7 +149,7 @@ export function registerMemoryWikiGatewayMethods(params: {
     "wiki.ingest",
     async ({ params: requestParams, respond }) => {
       try {
-        const inputPath = readStringParam(requestParams, "inputPath", { required: true });
+        const inputPath = readStringParam(requestParams, "inputPath", { required: true })!;
         const title = readStringParam(requestParams, "title");
         respond(
           true,
@@ -220,7 +220,7 @@ export function registerMemoryWikiGatewayMethods(params: {
     async ({ params: requestParams, respond }) => {
       try {
         await syncImportedSourcesIfNeeded(config, appConfig);
-        const query = readStringParam(requestParams, "query", { required: true });
+        const query = readStringParam(requestParams, "query", { required: true })!;
         const maxResults = readNumberParam(requestParams, "maxResults");
         const searchBackend = readEnumParam(requestParams, "backend", WIKI_SEARCH_BACKENDS);
         const searchCorpus = readEnumParam(requestParams, "corpus", WIKI_SEARCH_CORPORA);
@@ -266,7 +266,7 @@ export function registerMemoryWikiGatewayMethods(params: {
     async ({ params: requestParams, respond }) => {
       try {
         await syncImportedSourcesIfNeeded(config, appConfig);
-        const lookup = readStringParam(requestParams, "lookup", { required: true });
+        const lookup = readStringParam(requestParams, "lookup", { required: true })!;
         const fromLine = readNumberParam(requestParams, "fromLine");
         const lineCount = readNumberParam(requestParams, "lineCount");
         const searchBackend = readEnumParam(requestParams, "backend", WIKI_SEARCH_BACKENDS);
@@ -306,7 +306,7 @@ export function registerMemoryWikiGatewayMethods(params: {
     "wiki.obsidian.search",
     async ({ params: requestParams, respond }) => {
       try {
-        const query = readStringParam(requestParams, "query", { required: true });
+        const query = readStringParam(requestParams, "query", { required: true })!;
         respond(true, await runObsidianSearch({ config, query }));
       } catch (error) {
         respondError(respond, error);
@@ -319,7 +319,7 @@ export function registerMemoryWikiGatewayMethods(params: {
     "wiki.obsidian.open",
     async ({ params: requestParams, respond }) => {
       try {
-        const vaultPath = readStringParam(requestParams, "path", { required: true });
+        const vaultPath = readStringParam(requestParams, "path", { required: true })!;
         respond(true, await runObsidianOpen({ config, vaultPath }));
       } catch (error) {
         respondError(respond, error);
@@ -332,7 +332,7 @@ export function registerMemoryWikiGatewayMethods(params: {
     "wiki.obsidian.command",
     async ({ params: requestParams, respond }) => {
       try {
-        const id = readStringParam(requestParams, "id", { required: true });
+        const id = readStringParam(requestParams, "id", { required: true })!;
         respond(true, await runObsidianCommand({ config, id }));
       } catch (error) {
         respondError(respond, error);

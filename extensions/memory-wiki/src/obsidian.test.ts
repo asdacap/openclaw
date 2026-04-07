@@ -15,9 +15,7 @@ describe("runObsidianSearch", () => {
       { homedir: "/Users/tester" },
     );
     const calls: Array<{ command: string; argv: string[] }> = [];
-    const exec: NonNullable<
-      NonNullable<Parameters<typeof runObsidianSearch>[0]["deps"]>["exec"]
-    > = async (command, argv) => {
+    const exec = async (command: string, argv: readonly string[], _opts?: unknown) => {
       calls.push({ command, argv: [...argv] });
       return { stdout: "search output\n", stderr: "" };
     };
@@ -26,7 +24,9 @@ describe("runObsidianSearch", () => {
       config,
       query: "agent memory",
       deps: {
-        exec,
+        exec: exec as NonNullable<
+          NonNullable<Parameters<typeof runObsidianSearch>[0]["deps"]>["exec"]
+        >,
         resolveCommand: async () => "/usr/local/bin/obsidian",
       },
     });
