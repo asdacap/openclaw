@@ -92,6 +92,7 @@ import {
 } from "../../skills.js";
 import { buildSystemPromptParams } from "../../system-prompt-params.js";
 import { buildSystemPromptReport } from "../../system-prompt-report.js";
+import { patchLastActivityLine } from "../../system-prompt.js";
 import { sanitizeToolCallIdsForCloudCodeAssist } from "../../tool-call-id.js";
 import { resolveTranscriptPolicy } from "../../transcript-policy.js";
 import { DEFAULT_BOOTSTRAP_FILENAME } from "../../workspace.js";
@@ -102,7 +103,12 @@ import { runContextEngineMaintenance } from "../context-engine-maintenance.js";
 import { buildEmbeddedExtensionFactories } from "../extensions.js";
 import { applyExtraParamsToAgent, resolveAgentTransportOverride } from "../extra-params.js";
 import { prepareGooglePromptCacheStreamFn } from "../google-prompt-cache.js";
-import { getDmHistoryLimitFromSessionKey, limitHistoryTurns } from "../history.js";
+import {
+  getDmHistoryLimitFromSessionKey,
+  injectTurnTemporalMarkers,
+  limitHistoryTurns,
+  parseMessageTimestamp,
+} from "../history.js";
 import { log } from "../logger.js";
 import { buildEmbeddedMessageActionDiscoveryInput } from "../message-action-discovery-input.js";
 import {
@@ -1212,9 +1218,22 @@ export async function runEmbeddedAttempt(
               erroredAssistantResultPolicy: "drop",
             })
           : truncated;
-        cacheTrace?.recordStage("session:limited", { messages: limited });
-        if (limited.length > 0) {
-          activeSession.agent.state.messages = limited;
+        // Inject per-turn temporal markers so the model understands time gaps
+        const withTemporalMarkers = injectTurnTemporalMarkers(limited);
+        cacheTrace?.recordStage("session:limited", { messages: withTemporalMarkers });
+        if (withTemporalMarkers.length > 0) {
+          activeSession.agent.state.messages = withTemporalMarkers;
+        }
+
+        // Patch system prompt: anchor "Conversation history starts" to the
+        // first message in the visible history window.
+        const firstMsgTs =
+          withTemporalMarkers.length > 0
+            ? parseMessageTimestamp((withTemporalMarkers[0] as { timestamp?: unknown }).timestamp)
+            : null;
+        if (firstMsgTs) {
+          systemPromptText = patchLastActivityLine(systemPromptText, firstMsgTs, Date.now());
+          applySystemPromptOverrideToSession(activeSession, systemPromptText);
         }
 
         if (params.contextEngine) {

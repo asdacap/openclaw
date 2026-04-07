@@ -3,7 +3,11 @@ import { SILENT_REPLY_TOKEN } from "../auto-reply/tokens.js";
 import { typedCases } from "../test-utils/typed-cases.js";
 import { buildSubagentSystemPrompt } from "./subagent-announce.js";
 import { SYSTEM_PROMPT_CACHE_BOUNDARY } from "./system-prompt-cache-boundary.js";
-import { buildAgentSystemPrompt, buildRuntimeLine } from "./system-prompt.js";
+import {
+  buildAgentSystemPrompt,
+  buildRuntimeLine,
+  patchLastActivityLine,
+} from "./system-prompt.js";
 
 describe("buildAgentSystemPrompt", () => {
   it("formats owner section for plain, hash, and missing owner lists", () => {
@@ -1059,5 +1063,30 @@ describe("buildSubagentSystemPrompt", () => {
         expect(prompt, testCase.name).toContain("spawned by the main agent");
       }
     }
+  });
+});
+
+describe("patchLastActivityLine", () => {
+  it("replaces the 'Conversation history starts' line with corrected duration", () => {
+    const prompt = "Some preamble\nConversation history starts: 2 hours ago\nMore text";
+    const nowMs = Date.parse("2026-04-04T15:00:00Z");
+    const firstMsgMs = Date.parse("2026-04-01T15:00:00Z"); // 3 days ago
+    const result = patchLastActivityLine(prompt, firstMsgMs, nowMs);
+    expect(result).toContain("Conversation history starts: 3 days ago");
+    expect(result).not.toContain("2 hours ago");
+  });
+
+  it("returns the prompt unchanged when the line is not present", () => {
+    const prompt = "Some preamble\nMore text";
+    const result = patchLastActivityLine(prompt, Date.now() - 3_600_000, Date.now());
+    expect(result).toBe(prompt);
+  });
+
+  it("returns the prompt unchanged for future timestamps", () => {
+    const nowMs = Date.now();
+    const prompt = "Conversation history starts: 2 hours ago\n";
+    // Future timestamp produces a negative diff, formatDurationSince returns undefined
+    const result = patchLastActivityLine(prompt, nowMs + 1_000_000, nowMs);
+    expect(result).toBe(prompt);
   });
 });

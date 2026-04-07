@@ -1,5 +1,6 @@
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import type { OpenClawConfig } from "../../config/config.js";
+import { formatDurationSince } from "../current-time.js";
 import { normalizeProviderId } from "../provider-id.js";
 
 const THREAD_SUFFIX_REGEX = /^(.*)(?::(?:thread|topic):\d+)$/i;
@@ -121,3 +122,137 @@ export function getHistoryLimitFromSessionKey(
  * Alias for backward compatibility.
  */
 export const getDmHistoryLimitFromSessionKey = getHistoryLimitFromSessionKey;
+
+export function parseMessageTimestamp(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+const TEMPORAL_MARKER_PREFIX = "[";
+const TEMPORAL_MARKER_SUFFIX = " since last interaction]";
+const DEFAULT_MIN_GAP_MS = 60_000; // 1 minute
+
+function extractTextContent(msg: AgentMessage): string | undefined {
+  const user = msg as Extract<AgentMessage, { role: "user" }>;
+  if (typeof user.content === "string") {
+    return user.content;
+  }
+  if (!Array.isArray(user.content)) {
+    return undefined;
+  }
+  const textBlock = user.content.find(
+    (block) =>
+      block &&
+      typeof block === "object" &&
+      (block as { type?: unknown }).type === "text" &&
+      typeof (block as { text?: unknown }).text === "string",
+  ) as { type: "text"; text: string } | undefined;
+  return textBlock?.text;
+}
+
+function hasTemporalMarker(text: string): boolean {
+  return text.startsWith(TEMPORAL_MARKER_PREFIX) && text.includes(TEMPORAL_MARKER_SUFFIX);
+}
+
+function buildTemporalMarker(durationText: string): string {
+  return `${TEMPORAL_MARKER_PREFIX}${durationText}${TEMPORAL_MARKER_SUFFIX}`;
+}
+
+/**
+ * Injects temporal markers into user messages at turn boundaries so the model
+ * understands how much time passed between turns. Follows the same content
+ * prepend pattern as annotateInterSessionUserMessages().
+ */
+export function injectTurnTemporalMarkers(
+  messages: AgentMessage[],
+  options?: {
+    /** Minimum gap in ms to inject a marker. Default: 60_000 (1 minute) */
+    minGapMs?: number;
+    /** Current time for computing duration of the latest gap. Default: Date.now() */
+    nowMs?: number;
+  },
+): AgentMessage[] {
+  if (messages.length === 0) {
+    return messages;
+  }
+
+  const minGapMs = options?.minGapMs ?? DEFAULT_MIN_GAP_MS;
+  let touched = false;
+  const out: AgentMessage[] = [];
+  let lastSeenTimestamp: number | null = null;
+
+  for (const msg of messages) {
+    const msgTs = parseMessageTimestamp((msg as { timestamp?: unknown }).timestamp);
+
+    // At a turn boundary (user message), check for a time gap
+    if (msg.role === "user" && lastSeenTimestamp !== null && msgTs !== null) {
+      const gap = msgTs - lastSeenTimestamp;
+      if (gap >= minGapMs) {
+        const duration = formatDurationSince(lastSeenTimestamp, msgTs);
+        if (duration && duration !== "just now") {
+          const marker = buildTemporalMarker(duration);
+          const existingText = extractTextContent(msg);
+          // Skip if already has a temporal marker
+          if (existingText === undefined || !hasTemporalMarker(existingText)) {
+            if (typeof msg.content === "string") {
+              touched = true;
+              out.push({
+                ...(msg as unknown as Record<string, unknown>),
+                content: `${marker}\n${msg.content}`,
+              } as AgentMessage);
+              lastSeenTimestamp = msgTs;
+              continue;
+            }
+            if (Array.isArray(msg.content)) {
+              const textIndex = msg.content.findIndex(
+                (block) =>
+                  block &&
+                  typeof block === "object" &&
+                  (block as { type?: unknown }).type === "text" &&
+                  typeof (block as { text?: unknown }).text === "string",
+              );
+              if (textIndex >= 0) {
+                const existingBlock = msg.content[textIndex] as { type: "text"; text: string };
+                const nextContent = [...msg.content];
+                nextContent[textIndex] = {
+                  ...existingBlock,
+                  text: `${marker}\n${existingBlock.text}`,
+                };
+                touched = true;
+                out.push({
+                  ...(msg as unknown as Record<string, unknown>),
+                  content: nextContent,
+                } as AgentMessage);
+                lastSeenTimestamp = msgTs;
+                continue;
+              }
+              // No text block found — prepend one
+              touched = true;
+              out.push({
+                ...(msg as unknown as Record<string, unknown>),
+                content: [{ type: "text", text: marker }, ...msg.content],
+              } as AgentMessage);
+              lastSeenTimestamp = msgTs;
+              continue;
+            }
+          }
+        }
+      }
+    }
+
+    out.push(msg);
+    if (msgTs !== null) {
+      lastSeenTimestamp = msgTs;
+    }
+  }
+
+  return touched ? out : messages;
+}

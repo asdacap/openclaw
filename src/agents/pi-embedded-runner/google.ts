@@ -40,6 +40,7 @@ import {
   type AssistantUsageSnapshot,
   type UsageLike,
 } from "../usage.js";
+import { parseMessageTimestamp } from "./history.js";
 import { log } from "./logger.js";
 import { dropThinkingBlocks } from "./thinking.js";
 import { describeUnknownError } from "./utils.js";
@@ -147,19 +148,6 @@ function annotateInterSessionUserMessages(messages: AgentMessage[]): AgentMessag
     } as AgentMessage);
   }
   return touched ? out : messages;
-}
-
-function parseMessageTimestamp(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
-  if (typeof value === "string") {
-    const parsed = Date.parse(value);
-    if (Number.isFinite(parsed)) {
-      return parsed;
-    }
-  }
-  return null;
 }
 
 function stripStaleAssistantUsageBeforeLatestCompaction(messages: AgentMessage[]): AgentMessage[] {

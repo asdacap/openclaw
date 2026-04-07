@@ -751,7 +751,7 @@ export function buildAgentSystemPrompt(params: {
   if (typeof params.lastActivityAt === "number" && params.lastActivityAt > 0) {
     const duration = formatDurationSince(params.lastActivityAt, Date.now());
     if (duration) {
-      lines.push(`Last interaction: ${duration} ago`, "");
+      lines.push(`Conversation history starts: ${duration} ago`, "");
     }
   }
 
@@ -819,4 +819,25 @@ export function buildRuntimeLine(
   ]
     .filter(Boolean)
     .join(" | ")}`;
+}
+
+const LAST_ACTIVITY_LINE_RE = /Conversation history starts: .+? ago\n?/;
+
+/**
+ * Patches the "Conversation history starts: ..." line in a system prompt with
+ * a corrected value based on the first message timestamp in the visible history.
+ */
+export function patchLastActivityLine(
+  systemPrompt: string,
+  firstMessageTimestampMs: number,
+  nowMs: number,
+): string {
+  const duration = formatDurationSince(firstMessageTimestampMs, nowMs);
+  if (!duration) {
+    return systemPrompt;
+  }
+  return systemPrompt.replace(
+    LAST_ACTIVITY_LINE_RE,
+    `Conversation history starts: ${duration} ago\n`,
+  );
 }
