@@ -35,6 +35,8 @@ const SUBAGENT_TOOL_DENY_ALWAYS = [
   "cron",
   // Direct session sends - subagents communicate through announce chain
   "sessions_send",
+  // Compaction - subagents should not compact the parent session
+  "compact",
 ];
 
 /**

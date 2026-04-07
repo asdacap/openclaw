@@ -8,6 +8,7 @@ import {
   normalizeToolName,
   type ToolPolicyLike,
 } from "./tool-policy.js";
+import type { DisabledToolsRef } from "./tools/tools-disabled-tool.js";
 
 const MAX_TOOL_POLICY_WARNING_CACHE = 256;
 const seenToolPolicyWarnings = new Set<string>();
@@ -94,6 +95,8 @@ export function applyToolPolicyPipeline(params: {
   toolMeta: (tool: AnyAgentTool) => { pluginId: string } | undefined;
   warn: (message: string) => void;
   steps: ToolPolicyPipelineStep[];
+  /** When provided, populated with tools removed by policy and the step that removed them. */
+  disabledToolsRef?: DisabledToolsRef;
 }): AnyAgentTool[] {
   const coreToolNames = new Set(
     params.tools
@@ -152,7 +155,20 @@ export function applyToolPolicyPipeline(params: {
     }
 
     const expanded = expandPolicyWithPluginGroups(policy, pluginGroups);
+    const before = filtered;
     filtered = expanded ? filterToolsByPolicy(filtered, expanded) : filtered;
+
+    if (params.disabledToolsRef && before.length !== filtered.length) {
+      const remainingNames = new Set(filtered.map((t) => t.name));
+      for (const tool of before) {
+        if (!remainingNames.has(tool.name)) {
+          params.disabledToolsRef.value.push({
+            name: tool.name,
+            reason: step.label,
+          });
+        }
+      }
+    }
   }
   return filtered;
 }

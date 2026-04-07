@@ -58,6 +58,7 @@ import {
   mergeAlsoAllowPolicy,
   resolveToolProfilePolicy,
 } from "./tool-policy.js";
+import type { DisabledToolsRef } from "./tools/tools-disabled-tool.js";
 import { resolveWorkspaceRoot } from "./workspace-dir.js";
 
 function isOpenAIProvider(provider?: string) {
@@ -72,6 +73,23 @@ const TOOL_ALLOW_BY_MESSAGE_PROVIDER: Readonly<Record<string, readonly string[]>
   node: ["canvas", "image", "pdf", "tts", "web_fetch", "web_search"],
 };
 const MEMORY_FLUSH_ALLOWED_TOOL_NAMES = new Set(["read", "write"]);
+
+function trackDisabledTools(
+  before: AnyAgentTool[],
+  after: AnyAgentTool[],
+  reason: string,
+  ref: DisabledToolsRef,
+): void {
+  if (before.length === after.length) {
+    return;
+  }
+  const afterNames = new Set(after.map((t) => t.name));
+  for (const tool of before) {
+    if (!afterNames.has(tool.name)) {
+      ref.value.push({ name: tool.name, reason });
+    }
+  }
+}
 
 function normalizeMessageProvider(messageProvider?: string): string | undefined {
   const normalized = messageProvider?.trim().toLowerCase();
@@ -319,10 +337,13 @@ export function createOpenClawCodingTools(options?: {
   senderIsOwner?: boolean;
   /** Callback invoked when sessions_yield tool is called. */
   onYield?: (message: string) => Promise<void> | void;
+  /** Session file path for compact tool. */
+  sessionFile?: string;
 }): AnyAgentTool[] {
   const execToolName = "exec";
   const sandbox = options?.sandbox?.enabled ? options.sandbox : undefined;
   const isMemoryFlushRun = options?.trigger === "memory";
+  const disabledToolsRef: DisabledToolsRef = { value: [] };
   if (isMemoryFlushRun && !options?.memoryFlushWritePath) {
     throw new Error("memoryFlushWritePath required for memory-triggered tool runs");
   }
@@ -593,6 +614,8 @@ export function createOpenClawCodingTools(options?: {
       sessionId: options?.sessionId,
       onYield: options?.onYield,
       allowGatewaySubagentBinding: options?.allowGatewaySubagentBinding,
+      sessionFile: options?.sessionFile,
+      disabledToolsRef,
     }),
   ];
   const toolsForMemoryFlush =
@@ -621,6 +644,12 @@ export function createOpenClawCodingTools(options?: {
     toolsForMemoryFlush,
     options?.messageProvider,
   );
+  trackDisabledTools(
+    toolsForMemoryFlush,
+    toolsForMessageProvider,
+    "message provider policy",
+    disabledToolsRef,
+  );
   const toolsForModelProvider = applyModelProviderToolPolicy(toolsForMessageProvider, {
     config: options?.config,
     modelProvider: options?.modelProvider,
@@ -629,13 +658,26 @@ export function createOpenClawCodingTools(options?: {
     agentDir: options?.agentDir,
     modelCompat: options?.modelCompat,
   });
+  trackDisabledTools(
+    toolsForMessageProvider,
+    toolsForModelProvider,
+    "model provider policy",
+    disabledToolsRef,
+  );
   // Security: treat unknown/undefined as unauthorized (opt-in, not opt-out)
   const senderIsOwner = options?.senderIsOwner === true;
   const toolsByAuthorization = applyOwnerOnlyToolPolicy(toolsForModelProvider, senderIsOwner);
+  trackDisabledTools(
+    toolsForModelProvider,
+    toolsByAuthorization,
+    "owner-only policy",
+    disabledToolsRef,
+  );
   const subagentFiltered = applyToolPolicyPipeline({
     tools: toolsByAuthorization,
     toolMeta: (tool) => getPluginToolMeta(tool),
     warn: logWarn,
+    disabledToolsRef,
     steps: [
       ...buildDefaultToolPolicyPipelineSteps({
         profilePolicy: profilePolicyWithAlsoAllow,

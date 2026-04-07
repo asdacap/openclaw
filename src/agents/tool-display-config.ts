@@ -461,6 +461,16 @@ export const TOOL_DISPLAY_CONFIG: ToolDisplayConfig = {
       title: "Agents",
       detailKeys: [],
     },
+    compact: {
+      emoji: "🗜️",
+      title: "Compact",
+      detailKeys: ["instructions", "flushMemory"],
+    },
+    tools_disabled: {
+      emoji: "🚫",
+      title: "Disabled Tools",
+      detailKeys: [],
+    },
     memory_search: {
       emoji: "🧠",
       title: "Memory Search",

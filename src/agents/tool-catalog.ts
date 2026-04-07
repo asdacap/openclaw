@@ -1,4 +1,5 @@
 import {
+  COMPACT_TOOL_DISPLAY_SUMMARY,
   CRON_TOOL_DISPLAY_SUMMARY,
   EXEC_TOOL_DISPLAY_SUMMARY,
   PROCESS_TOOL_DISPLAY_SUMMARY,
@@ -7,6 +8,7 @@ import {
   SESSIONS_SEND_TOOL_DISPLAY_SUMMARY,
   SESSIONS_SPAWN_TOOL_DISPLAY_SUMMARY,
   SESSION_STATUS_TOOL_DISPLAY_SUMMARY,
+  TOOLS_DISABLED_TOOL_DISPLAY_SUMMARY,
   UPDATE_PLAN_TOOL_DISPLAY_SUMMARY,
 } from "./tool-description-presets.js";
 
@@ -299,6 +301,22 @@ const CORE_TOOL_DEFINITIONS: CoreToolDefinition[] = [
     description: "Text-to-speech conversion",
     sectionId: "media",
     profiles: [],
+    includeInOpenClawGroup: true,
+  },
+  {
+    id: "compact",
+    label: "compact",
+    description: COMPACT_TOOL_DISPLAY_SUMMARY,
+    sectionId: "sessions",
+    profiles: ["coding"],
+    includeInOpenClawGroup: true,
+  },
+  {
+    id: "tools_disabled",
+    label: "tools_disabled",
+    description: TOOLS_DISABLED_TOOL_DISPLAY_SUMMARY,
+    sectionId: "sessions",
+    profiles: ["minimal", "coding", "messaging"],
     includeInOpenClawGroup: true,
   },
 ];

@@ -16,6 +16,7 @@ import type { ToolFsPolicy } from "./tool-fs-policy.js";
 import { createAgentsListTool } from "./tools/agents-list-tool.js";
 import { createCanvasTool } from "./tools/canvas-tool.js";
 import type { AnyAgentTool } from "./tools/common.js";
+import { createCompactTool } from "./tools/compact-tool.js";
 import { createCronTool } from "./tools/cron-tool.js";
 import { createGatewayTool } from "./tools/gateway-tool.js";
 import { createImageGenerateTool } from "./tools/image-generate-tool.js";
@@ -31,6 +32,7 @@ import { createSessionsSendTool } from "./tools/sessions-send-tool.js";
 import { createSessionsSpawnTool } from "./tools/sessions-spawn-tool.js";
 import { createSessionsYieldTool } from "./tools/sessions-yield-tool.js";
 import { createSubagentsTool } from "./tools/subagents-tool.js";
+import { createToolsDisabledTool, type DisabledToolsRef } from "./tools/tools-disabled-tool.js";
 import { createTtsTool } from "./tools/tts-tool.js";
 import { createUpdatePlanTool } from "./tools/update-plan-tool.js";
 import { createVideoGenerateTool } from "./tools/video-generate-tool.js";
@@ -116,6 +118,10 @@ export function createOpenClawTools(
     onYield?: (message: string) => Promise<void> | void;
     /** Allow plugin tools for this tool set to late-bind the gateway subagent. */
     allowGatewaySubagentBinding?: boolean;
+    /** Session file path for compact tool. */
+    sessionFile?: string;
+    /** Mutable ref populated with tools removed by policy. */
+    disabledToolsRef?: DisabledToolsRef;
   } & SpawnedToolContext,
 ): AnyAgentTool[] {
   const resolvedConfig = options?.config ?? openClawToolsDeps.config;
@@ -294,6 +300,25 @@ export function createOpenClawTools(
       config: resolvedConfig,
       sandboxed: options?.sandboxed,
     }),
+    ...(options?.sessionId && options?.sessionFile
+      ? [
+          createCompactTool({
+            sessionId: options.sessionId,
+            sessionKey: options.agentSessionKey,
+            sessionFile: options.sessionFile,
+            workspaceDir,
+            agentDir: options.agentDir,
+            config: resolvedConfig,
+            skillsSnapshot: undefined,
+            provider: options.modelProvider,
+            senderIsOwner: options.senderIsOwner,
+            allowGatewaySubagentBinding: options.allowGatewaySubagentBinding,
+          }),
+        ]
+      : []),
+    ...(options?.disabledToolsRef
+      ? [createToolsDisabledTool({ disabledToolsRef: options.disabledToolsRef })]
+      : []),
     ...(webSearchTool ? [webSearchTool] : []),
     ...(webFetchTool ? [webFetchTool] : []),
     ...(imageTool ? [imageTool] : []),
