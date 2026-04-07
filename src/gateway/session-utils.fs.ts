@@ -412,6 +412,54 @@ export function readLastMessagePreviewFromTranscript(
   });
 }
 
+function readLastMessageTimestampFromOpenTranscript(params: {
+  fd: number;
+  size: number;
+}): number | null {
+  const readStart = Math.max(0, params.size - LAST_MSG_MAX_BYTES);
+  const readLen = Math.min(params.size, LAST_MSG_MAX_BYTES);
+  const buf = Buffer.alloc(readLen);
+  fs.readSync(params.fd, buf, 0, readLen, readStart);
+
+  const chunk = buf.toString("utf-8");
+  const lines = chunk.split(/\r?\n/).filter((l) => l.trim());
+  const tailLines = lines.slice(-LAST_MSG_MAX_LINES);
+
+  for (let i = tailLines.length - 1; i >= 0; i--) {
+    const line = tailLines[i];
+    try {
+      const parsed = JSON.parse(line);
+      const msg = parsed?.message as TranscriptMessage | undefined;
+      if (msg?.role !== "user" && msg?.role !== "assistant") {
+        continue;
+      }
+      const raw = parsed?.timestamp;
+      if (typeof raw === "number" && Number.isFinite(raw)) {
+        return raw;
+      }
+      if (typeof raw === "string") {
+        const ms = Date.parse(raw);
+        if (Number.isFinite(ms)) {
+          return ms;
+        }
+      }
+    } catch {
+      // skip malformed
+    }
+  }
+  return null;
+}
+
+export function readLastMessageTimestampFromSessionFile(sessionFile: string): number | null {
+  return withOpenTranscriptFd(sessionFile, (fd) => {
+    const stat = fs.fstatSync(fd);
+    if (stat.size === 0) {
+      return null;
+    }
+    return readLastMessageTimestampFromOpenTranscript({ fd, size: stat.size });
+  });
+}
+
 export type SessionTranscriptUsageSnapshot = {
   modelProvider?: string;
   model?: string;

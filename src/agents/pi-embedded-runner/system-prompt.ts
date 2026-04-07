@@ -50,6 +50,7 @@ export function buildEmbeddedSystemPrompt(params: {
   userTimezone: string;
   userTime?: string;
   userTimeFormat?: ResolvedTimeFormat;
+  lastActivityAt?: number;
   contextFiles?: EmbeddedContextFile[];
   memoryCitationsMode?: MemoryCitationsMode;
   promptContribution?: ProviderSystemPromptContribution;
@@ -79,6 +80,7 @@ export function buildEmbeddedSystemPrompt(params: {
     userTimezone: params.userTimezone,
     userTime: params.userTime,
     userTimeFormat: params.userTimeFormat,
+    lastActivityAt: params.lastActivityAt,
     contextFiles: params.contextFiles,
     memoryCitationsMode: params.memoryCitationsMode,
     promptContribution: params.promptContribution,

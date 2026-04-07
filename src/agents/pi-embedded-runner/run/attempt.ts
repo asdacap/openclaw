@@ -8,6 +8,7 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
+import { readLastMessageTimestampFromSessionFile } from "../../../gateway/session-utils.fs.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
 import {
   ensureGlobalUndiciEnvProxyDispatcher,
@@ -664,6 +665,7 @@ export async function runEmbeddedAttempt(
     })
       ? resolveHeartbeatPrompt(params.config?.agents?.defaults?.heartbeat?.prompt)
       : undefined;
+    const lastActivityAt = readLastMessageTimestampFromSessionFile(params.sessionFile) ?? undefined;
     const promptContribution = resolveProviderSystemPromptContribution({
       provider: params.provider,
       config: params.config,
@@ -706,6 +708,7 @@ export async function runEmbeddedAttempt(
       userTimezone,
       userTime,
       userTimeFormat,
+      lastActivityAt,
       contextFiles,
       memoryCitationsMode: params.config?.memory?.citations,
       promptContribution,
