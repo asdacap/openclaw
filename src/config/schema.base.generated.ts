@@ -3930,6 +3930,13 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
                     minimum: 0,
                     maximum: 9007199254740991,
                   },
+                  thinkingOnlyRetryMaxAttempts: {
+                    description:
+                      "Maximum automatic retries when a model returns only thinking/reasoning blocks with no visible text. Set to 0 to disable. Default: 3.",
+                    type: "integer",
+                    minimum: 0,
+                    maximum: 9007199254740991,
+                  },
                 },
                 additionalProperties: false,
               },
@@ -24885,6 +24892,11 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
       help: "System-prompt override for the pre-compaction memory flush turn to control extraction style and safety constraints. Use carefully so custom instructions do not reduce memory quality or leak sensitive context.",
       tags: ["advanced"],
     },
+    "agents.defaults.compaction.memoryFlush.model": {
+      label: "Memory Flush Model Override",
+      help: "Optional provider/model override used only for memory flush runs. Set this when you want memory flush to run on a different model than the session default, and leave it unset to keep using the primary agent model.",
+      tags: ["models"],
+    },
     "agents.defaults.embeddedPi": {
       label: "Embedded Pi",
       help: "Embedded Pi runner hardening controls for how workspace-local Pi settings are trusted and applied in OpenClaw sessions.",
@@ -26564,6 +26576,6 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
       tags: ["advanced", "url-secret"],
     },
   },
-  version: "2026.4.5",
+  version: "2026.4.6",
   generatedAt: "2026-03-22T21:17:33.302Z",
 };
