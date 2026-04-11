@@ -629,27 +629,30 @@ export async function runMemoryFlushIfNeeded(params: {
       `forceFlushTranscriptBytes=${forceFlushTranscriptBytes} forceFlushByTranscriptSize=${shouldForceFlushByTranscriptSize}`,
   );
 
-  const shouldFlushMemory =
-    (memoryFlushWritable &&
-      !params.isHeartbeat &&
-      shouldRunMemoryFlush({
-        entry,
-        tokenCount: tokenCountForFlush,
-        contextWindowTokens,
-        reserveTokensFloor: memoryFlushPlan.reserveTokensFloor,
-        softThresholdTokens: memoryFlushPlan.softThresholdTokens,
-      })) ||
-    (shouldForceFlushByTranscriptSize &&
-      entry != null &&
-      !hasAlreadyFlushedForCurrentCompaction(entry));
+  const tokenThresholdTriggered =
+    memoryFlushWritable &&
+    !params.isHeartbeat &&
+    shouldRunMemoryFlush({
+      entry,
+      tokenCount: tokenCountForFlush,
+      contextWindowTokens,
+      reserveTokensFloor: memoryFlushPlan.reserveTokensFloor,
+      softThresholdTokens: memoryFlushPlan.softThresholdTokens,
+    });
+  const transcriptSizeTriggered =
+    shouldForceFlushByTranscriptSize &&
+    entry != null &&
+    !hasAlreadyFlushedForCurrentCompaction(entry);
+  const shouldFlushMemory = tokenThresholdTriggered || transcriptSizeTriggered;
 
   if (!shouldFlushMemory) {
     return entry ?? params.sessionEntry;
   }
 
-  logVerbose(
-    `memoryFlush triggered: sessionKey=${params.sessionKey} tokenCount=${tokenCountForFlush ?? "undefined"} threshold=${flushThreshold}`,
-  );
+  const flushReason = tokenThresholdTriggered
+    ? `token_threshold (${tokenCountForFlush ?? "unknown"} >= ${flushThreshold})`
+    : `transcript_size (${transcriptByteSize ?? "unknown"} bytes >= ${forceFlushTranscriptBytes})`;
+  logVerbose(`memoryFlush triggered: sessionKey=${params.sessionKey} reason=${flushReason}`);
 
   params.replyOperation.setPhase("memory_flushing");
   let activeSessionEntry = entry ?? params.sessionEntry;
