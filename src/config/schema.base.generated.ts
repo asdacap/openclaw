@@ -4123,6 +4123,12 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
                         description:
                           "System-prompt override for the pre-compaction memory flush turn to control extraction style and safety constraints. Use carefully so custom instructions do not reduce memory quality or leak sensitive context.",
                       },
+                      model: {
+                        type: "string",
+                        title: "Memory Flush Model Override",
+                        description:
+                          "Optional provider/model override used only for memory flush runs. Set this when you want memory flush to run on a different model than the session default, and leave it unset to keep using the primary agent model.",
+                      },
                     },
                     additionalProperties: false,
                     title: "Compaction Memory Flush",
