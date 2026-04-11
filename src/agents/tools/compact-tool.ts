@@ -202,7 +202,7 @@ async function runMemoryFlush(params: {
     }
   }
 
-  const { runEmbeddedPiAgent } = await import("../pi-embedded-runner/run.js");
+  const { runEmbeddedPiAgent } = await import("../pi-embedded-runner/run.runtime.js");
   const { updateSessionStoreEntry } = await import("../../config/sessions/store.runtime.js");
 
   let memoryCompactionCompleted = false;
