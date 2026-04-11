@@ -691,10 +691,29 @@ export async function runMemoryFlushIfNeeded(params: {
   ]
     .filter(Boolean)
     .join("\n\n");
+  // Resolve optional model override for memory flush runs.
+  const memoryFlushModelOverride =
+    params.cfg.agents?.defaults?.compaction?.memoryFlush?.model?.trim();
+  const memoryFlushFallbackOptions = (() => {
+    const base = resolveModelFallbackOptions(params.followupRun.run);
+    if (!memoryFlushModelOverride) {
+      return base;
+    }
+    const slashIdx = memoryFlushModelOverride.indexOf("/");
+    if (slashIdx > 0) {
+      return {
+        ...base,
+        provider: memoryFlushModelOverride.slice(0, slashIdx).trim(),
+        model: memoryFlushModelOverride.slice(slashIdx + 1).trim() || base.model,
+      };
+    }
+    return { ...base, model: memoryFlushModelOverride };
+  })();
+
   let postCompactionSessionId: string | undefined;
   try {
     await runWithModelFallback({
-      ...resolveModelFallbackOptions(params.followupRun.run),
+      ...memoryFlushFallbackOptions,
       runId: flushRunId,
       run: async (provider, model, runOptions) => {
         const { embeddedContext, senderContext, runBaseParams } = buildEmbeddedRunExecutionParams({

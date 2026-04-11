@@ -261,6 +261,11 @@ export function collectConfiguredModelPricingRefs(config: OpenClawConfig): Model
   addModelListLike({ value: config.agents?.defaults?.imageModel, aliasIndex, refs });
   addModelListLike({ value: config.agents?.defaults?.pdfModel, aliasIndex, refs });
   addResolvedModelRef({ raw: config.agents?.defaults?.compaction?.model, aliasIndex, refs });
+  addResolvedModelRef({
+    raw: config.agents?.defaults?.compaction?.memoryFlush?.model,
+    aliasIndex,
+    refs,
+  });
   addResolvedModelRef({ raw: config.agents?.defaults?.heartbeat?.model, aliasIndex, refs });
   addModelListLike({ value: config.tools?.subagents?.model, aliasIndex, refs });
   addResolvedModelRef({ raw: config.messages?.tts?.summaryModel, aliasIndex, refs });
