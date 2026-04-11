@@ -264,13 +264,22 @@ function estimatePromptTokensFromSessionTranscript(params: {
     return undefined;
   }
   try {
-    const messages = readSessionMessages(
+    let messages = readSessionMessages(
       sessionId,
       params.storePath,
       params.sessionFile,
-    ) as AgentMessage[];
+    ) as (AgentMessage & { __openclaw?: { kind?: string } })[];
     if (messages.length === 0) {
       return undefined;
+    }
+    // Only count messages after the last compaction — earlier messages were
+    // already summarised and are not part of the current context window.
+    const lastCompactionIdx = messages.findLastIndex((m) => m.__openclaw?.kind === "compaction");
+    if (lastCompactionIdx >= 0) {
+      messages = messages.slice(lastCompactionIdx + 1);
+      if (messages.length === 0) {
+        return undefined;
+      }
     }
     const estimatedTokens = estimateMessagesTokens(messages);
     if (!Number.isFinite(estimatedTokens) || estimatedTokens <= 0) {
