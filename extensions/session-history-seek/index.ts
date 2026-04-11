@@ -6,8 +6,6 @@ export default definePluginEntry({
   name: "Session History Seek",
   description: "Efficient seek-based session history retrieval with timestamp and offset support",
   register(api: OpenClawPluginApi) {
-    api.registerTool(createSessionHistorySeekTool(api) as unknown as AnyAgentTool, {
-      optional: true,
-    });
+    api.registerTool(createSessionHistorySeekTool(api) as unknown as AnyAgentTool);
   },
 });
