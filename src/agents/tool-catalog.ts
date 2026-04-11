@@ -160,6 +160,14 @@ const CORE_TOOL_DEFINITIONS: CoreToolDefinition[] = [
     includeInOpenClawGroup: true,
   },
   {
+    id: "sessions_history_seek",
+    label: "sessions_history_seek",
+    description: "Seek-based session history retrieval with timestamp and offset support",
+    sectionId: "sessions",
+    profiles: ["coding", "messaging"],
+    includeInOpenClawGroup: true,
+  },
+  {
     id: "sessions_send",
     label: "sessions_send",
     description: SESSIONS_SEND_TOOL_DISPLAY_SUMMARY,
