@@ -6,7 +6,6 @@ import { getChannelPlugin } from "../channels/plugins/index.js";
 import type { MemoryCitationsMode } from "../config/types.memory.js";
 import { buildMemoryPromptSection } from "../plugins/memory-state.js";
 import { listDeliverableMessageChannels } from "../utils/message-channel.js";
-import { formatDurationSince } from "./current-time.js";
 import type { ResolvedTimeFormat } from "./date-time.js";
 import type { EmbeddedContextFile } from "./pi-embedded-helpers.js";
 import type { EmbeddedSandboxInfo } from "./pi-embedded-runner/types.js";
@@ -324,7 +323,6 @@ export function buildAgentSystemPrompt(params: {
   userTimezone?: string;
   userTime?: string;
   userTimeFormat?: ResolvedTimeFormat;
-  lastActivityAt?: number;
   contextFiles?: EmbeddedContextFile[];
   skillsPrompt?: string;
   heartbeatPrompt?: string;
@@ -748,13 +746,6 @@ export function buildAgentSystemPrompt(params: {
     lines.push(providerDynamicSuffix, "");
   }
 
-  if (typeof params.lastActivityAt === "number" && params.lastActivityAt > 0) {
-    const duration = formatDurationSince(params.lastActivityAt, Date.now());
-    if (duration) {
-      lines.push(`Conversation history starts: ${duration} ago`, "");
-    }
-  }
-
   // Skip heartbeats for subagent/none modes
   if (!isMinimal && heartbeatPrompt) {
     lines.push(
@@ -819,25 +810,4 @@ export function buildRuntimeLine(
   ]
     .filter(Boolean)
     .join(" | ")}`;
-}
-
-const LAST_ACTIVITY_LINE_RE = /Conversation history starts: .+? ago\n?/;
-
-/**
- * Patches the "Conversation history starts: ..." line in a system prompt with
- * a corrected value based on the first message timestamp in the visible history.
- */
-export function patchLastActivityLine(
-  systemPrompt: string,
-  firstMessageTimestampMs: number,
-  nowMs: number,
-): string {
-  const duration = formatDurationSince(firstMessageTimestampMs, nowMs);
-  if (!duration) {
-    return systemPrompt;
-  }
-  return systemPrompt.replace(
-    LAST_ACTIVITY_LINE_RE,
-    `Conversation history starts: ${duration} ago\n`,
-  );
 }
